@@ -121,24 +121,27 @@ def fig3_sensitivity_alpha(out_path: Path,
 
 
 def fig4_group_size(df: pd.DataFrame, out_path: Path) -> None:
-    grouped = (df.groupby(["n", "method"])["pearson_r"]
-                 .agg(["mean", "sem"])
-                 .unstack("method")
-                 .reindex(columns=METHOD_ORDER))
+    # Pre-aggregate mean and sem separately (avoids multi-agg unstack issues)
+    means = (df.groupby(["n", "method"])["pearson_r"]
+               .mean()
+               .unstack("method")
+               .reindex(columns=METHOD_ORDER))
+    sems = (df.groupby(["n", "method"])["pearson_r"]
+              .sem()
+              .unstack("method")
+              .reindex(columns=METHOD_ORDER))
     fig, ax = plt.subplots(figsize=(6, 3.2))
-    x = grouped.index.values
+    x = means.index.values
     for method in METHOD_ORDER:
-        # Skip methods that did not survive the groupby (e.g., Equal, whose
-        # standard error is zero and may be dropped by pandas).
-        if ("mean", method) not in grouped.columns:
+        if method not in means.columns:
             continue
-        m = grouped[("mean", method)].values
-        s = grouped[("sem",  method)].values \
-            if ("sem", method) in grouped.columns else np.zeros_like(m)
+        m = means[method].values
+        s = sems[method].values if method in sems.columns else np.zeros_like(m)
         ax.errorbar(x, m, yerr=s, marker="o", label=method)
     ax.set_xlabel("Group size $n$")
     ax.set_ylabel("Pearson $r$")
     ax.set_xticks(x)
+    ax.set_ylim(0.0, 1.05)
     ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
