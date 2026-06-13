@@ -128,8 +128,13 @@ def fig4_group_size(df: pd.DataFrame, out_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(6, 3.2))
     x = grouped.index.values
     for method in METHOD_ORDER:
+        # Skip methods that did not survive the groupby (e.g., Equal, whose
+        # standard error is zero and may be dropped by pandas).
+        if ("mean", method) not in grouped.columns:
+            continue
         m = grouped[("mean", method)].values
-        s = grouped[("sem",  method)].values
+        s = grouped[("sem",  method)].values \
+            if ("sem", method) in grouped.columns else np.zeros_like(m)
         ax.errorbar(x, m, yerr=s, marker="o", label=method)
     ax.set_xlabel("Group size $n$")
     ax.set_ylabel("Pearson $r$")
